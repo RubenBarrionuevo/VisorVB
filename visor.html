@@ -3,100 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Visor PNOA con Leaflet - Punta Chullera</title>
+    <title>VisorVB - Punta Chullera</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
     <style>
-        #map {
+        #visorvb {
             width: 100%;
             height: 600px; /* Altura fija, ajustable según necesidades */
         }
-        .leaflet-control-tools {
+        .vbvisor-control-tools {
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 4px;
             padding: 5px;
         }
-        .leaflet-control-tools button {
+        .vbvisor-control-tools button {
             display: block;
             width: 100%;
             margin-bottom: 5px;
             cursor: pointer;
         }
-        .leaflet-control-tools .panel {
+        .vbvisor-control-tools .panel {
             display: none;
+            min-height: 50px; /* Asegura que el panel tenga un tamaño mínimo */
+            min-width: 150px; /* Asegura que el panel sea visible */
+            background-color: white;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-        .leaflet-control-coords {
+        .vbvisor-control-coords {
             background-color: white;
             padding: 5px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 12px;
+            display: none; /* Inicialmente oculto, visible con tecla 'C' */
         }
+        .vbvisor-control-nav-circle {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .vbvisor-control-nav-circle button {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .vbvisor-control-nav-circle .center-btn {
+            width: 40px;
+            height: 40px;
+        }
+        .vbvisor-control-nav-circle .up-btn { top: 5px; }
+        .vbvisor-control-nav-circle .down-btn { bottom: 5px; }
+        .vbvisor-control-nav-circle .left-btn { left: 5px; }
+        .vbvisor-control-nav-circle .right-btn { right: 5px; }
     </style>
 </head>
 <body>
-    <div id="map"></div>
+    <div id="visorvb"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Inicializar en zona La Paloma 10
-        var map = L.map('map', {
+        // Configuración del mapa
+        const mapConfig = {
+            initialLat: 36.3217, // Latitud inicial (La Paloma 10, Punta Chullera)
+            initialLng: -5.2489, // Longitud inicial
+            initialZoom: 17, // Nivel de zoom inicial
+            centerLat: 36.3217, // Latitud para centrar el mapa
+            centerLng: -5.2489, // Longitud para centrar el mapa
+            wmsLayers: [
+                {
+                    url: 'https://www.ign.es/wms-inspire/pnoa-ma?',
+                    layers: 'OI.OrthoimageCoverage',
+                    format: 'image/jpeg',
+                    transparent: true,
+                    opacity: 1.0,
+                    attribution: 'Visor desarrollado por VerticeB con la tecnologia de Leaflet | © Instituto Geográfico Nacional de España'
+                }
+                // Añade más capas WMS aquí, por ejemplo:
+                // {
+                //     url: 'https://otro-servicio-wms.com',
+                //     layers: 'nombre_capa',
+                //     format: 'image/png',
+                //     transparent: true,
+                //     opacity: 0.5,
+                //     attribution: 'Otra fuente'
+                // }
+            ]
+        };
+
+        // Inicializar el mapa
+        var map = L.map('visorvb', {
             attributionControl: true
-        }).setView([36.3217, -5.2489], 17);
+        }).setView([mapConfig.initialLat, mapConfig.initialLng], mapConfig.initialZoom);
 
         map.attributionControl.setPrefix(false);
 
-        // Configurar el WMS del PNOA de máxima actualidad
-        var pnoaLayer = L.tileLayer.wms('https://www.ign.es/wms-inspire/pnoa-ma?', {
-            layers: 'OI.OrthoimageCoverage',
-            format: 'image/jpeg',
-            transparent: true,
-            attribution: 'Visor desarrollado por VerticeB con la tecnologia de Leaflet | © Instituto Geográfico Nacional de España'
-        }).addTo(map);
+        // Configurar las capas WMS
+        mapConfig.wmsLayers.forEach(layerConfig => {
+            L.tileLayer.wms(layerConfig.url, {
+                layers: layerConfig.layers,
+                format: layerConfig.format,
+                transparent: layerConfig.transparent,
+                opacity: layerConfig.opacity,
+                attribution: layerConfig.attribution
+            }).addTo(map);
+        });
 
         // Ajustar el mapa al contenedor
         map.invalidateSize();
 
-        // Control personalizado para herramientas desplegables
+        // Control personalizado para herramientas desplegables (en topright)
         L.Control.Tools = L.Control.extend({
-            options: { position: 'topleft' },
+            options: { position: 'topright' },
             onAdd: function (map) {
-                var container = L.DomUtil.create('div', 'leaflet-control-tools');
+                var container = L.DomUtil.create('div', 'vbvisor-control-tools');
                 var toggleBtn = L.DomUtil.create('button', 'toggle', container);
                 toggleBtn.innerHTML = '<i class="fas fa-tools"></i>';
                 toggleBtn.title = 'Herramientas';
                 var panel = L.DomUtil.create('div', 'panel', container);
 
-                // Botón Centrar mapa
-                var centerBtn = L.DomUtil.create('button', '', panel);
-                centerBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Centrar mapa';
-                centerBtn.onclick = function () {
-                    map.setView([36.294, -5.239], 14);
-                };
-
-                // Botones de direcciones
-                var upBtn = L.DomUtil.create('button', '', panel);
-                upBtn.innerHTML = '<i class="fas fa-arrow-up"></i> Arriba';
-                upBtn.onclick = function () {
-                    map.panBy([0, -200]);
-                };
-
-                var downBtn = L.DomUtil.create('button', '', panel);
-                downBtn.innerHTML = '<i class="fas fa-arrow-down"></i> Abajo';
-                downBtn.onclick = function () {
-                    map.panBy([0, 200]);
-                };
-
-                var leftBtn = L.DomUtil.create('button', '', panel);
-                leftBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Izquierda';
-                leftBtn.onclick = function () {
-                    map.panBy([-200, 0]);
-                };
-
-                var rightBtn = L.DomUtil.create('button', '', panel);
-                rightBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Derecha';
-                rightBtn.onclick = function () {
-                    map.panBy([200, 0]);
+                // Botón de ejemplo para verificar funcionalidad
+                var exampleBtn = L.DomUtil.create('button', '', panel);
+                exampleBtn.innerHTML = '<i class="fas fa-info-circle"></i> Ejemplo';
+                exampleBtn.onclick = function () {
+                    alert('Botón de ejemplo en el menú de herramientas');
                 };
 
                 // Espacio para opciones futuras
@@ -114,11 +158,11 @@
 
         new L.Control.Tools().addTo(map);
 
-        // Control para coordenadas y zoom
+        // Control para coordenadas y zoom (visible con tecla 'C')
         L.Control.Coords = L.Control.extend({
             options: { position: 'bottomleft' },
             onAdd: function (map) {
-                this._div = L.DomUtil.create('div', 'leaflet-control-coords');
+                this._div = L.DomUtil.create('div', 'vbvisor-control-coords');
                 this.update('Mueve el ratón', map.getZoom());
                 var that = this;
                 map.on('mousemove', function (e) {
@@ -135,12 +179,67 @@
             }
         });
 
-        new L.Control.Coords().addTo(map);
+        var coordsControl = new L.Control.Coords().addTo(map);
+
+        // Mostrar/ocultar coordenadas con tecla 'C'
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'c' || e.key === 'C') {
+                coordsControl._div.style.display = coordsControl._div.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+
+        // Control para navegación circular (bottomright)
+        L.Control.NavCircle = L.Control.extend({
+            options: { position: 'bottomright' },
+            onAdd: function (map) {
+                var container = L.DomUtil.create('div', 'vbvisor-control-nav-circle');
+
+                // Botón Centrar mapa (en el centro)
+                var centerBtn = L.DomUtil.create('button', 'center-btn', container);
+                centerBtn.innerHTML = '<i class="fas fa-crosshairs"></i>';
+                centerBtn.title = 'Centrar mapa';
+                centerBtn.onclick = function () {
+                    map.setView([mapConfig.centerLat, mapConfig.centerLng], mapConfig.initialZoom);
+                };
+
+                // Botones de direcciones
+                var upBtn = L.DomUtil.create('button', 'up-btn', container);
+                upBtn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+                upBtn.title = 'Arriba';
+                upBtn.onclick = function () {
+                    map.panBy([0, -200]);
+                };
+
+                var downBtn = L.DomUtil.create('button', 'down-btn', container);
+                downBtn.innerHTML = '<i class="fas fa-arrow-down"></i>';
+                downBtn.title = 'Abajo';
+                downBtn.onclick = function () {
+                    map.panBy([0, 200]);
+                };
+
+                var leftBtn = L.DomUtil.create('button', 'left-btn', container);
+                leftBtn.innerHTML = '<i class="fas fa-arrow-left"></i>';
+                leftBtn.title = 'Izquierda';
+                leftBtn.onclick = function () {
+                    map.panBy([-200, 0]);
+                };
+
+                var rightBtn = L.DomUtil.create('button', 'right-btn', container);
+                rightBtn.innerHTML = '<i class="fas fa-arrow-right"></i>';
+                rightBtn.title = 'Derecha';
+                rightBtn.onclick = function () {
+                    map.panBy([200, 0]);
+                };
+
+                L.DomEvent.disableClickPropagation(container);
+                return container;
+            }
+        });
+
+        new L.Control.NavCircle().addTo(map);
 
         // Entrada para GeoJSON de parcelas
-        // Reemplaza null con tu objeto GeoJSON, o carga desde un archivo .geojson o .js
-        // Ejemplo: var parcelsGeoJSON = { type: "FeatureCollection", features: [...] };
-        var parcelsGeoJSON = null;
+        const parcelsGeoJSON = null;
 
         if (parcelsGeoJSON) {
             L.geoJSON(parcelsGeoJSON, {
@@ -150,7 +249,7 @@
             }).addTo(map);
         }
 
-        // Si quieres cargar desde un archivo .geojson, puedes usar fetch:
+        // Cargar desde un archivo .geojson (descomentar si es necesario)
         // fetch('tu_archivo.geojson').then(response => response.json()).then(data => {
         //     L.geoJSON(data).addTo(map);
         // });
