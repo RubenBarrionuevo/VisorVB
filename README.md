@@ -1,4 +1,4 @@
-VisorVB 🌍
+# VisorVB 🌍
   
 VisorVB is a multipurpose, web-based map viewer built with Leaflet, designed to integrate multiple WMS services (e.g., PNOA from IGN Spain) with customizable transparency and opacity. It offers an interactive interface with a customizable toolbar, circular navigation controls, and support for GeoJSON overlays. This project is ideal for geospatial enthusiasts and developers. 🗺️
 
@@ -102,8 +102,7 @@ Report issues or suggest enhancements via the Issues tab. 🐛
 License 📜
 This project is licensed under the MIT License. See the LICENSE file for details.
 
-Español 🇪🇸
-VisorVB 🌍
+## Español
   
 VisorVB es un visor de mapas web multipropósito construido con Leaflet, diseñado para integrar múltiples servicios WMS (como el PNOA del IGN de España) con transparencias y opacidades personalizables. Ofrece una interfaz interactiva con una barra de herramientas personalizable, controles de navegación circulares, visualización de coordenadas activable y soporte para superposiciones GeoJSON. Es ideal para visualización geoespacial. 🗺️
 
