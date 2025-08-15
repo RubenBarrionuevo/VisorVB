@@ -42,8 +42,8 @@
         }
         .vbvisor-control-nav-circle {
             position: relative;
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             background-color: white;
             border: 1px solid #ccc;
             border-radius: 50%;
@@ -56,26 +56,50 @@
             width: 30px;
             height: 30px;
             background-color: white;
-            border: 1px solid #ccc;
+            border: none;
             border-radius: 50%;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: all 0.3s ease;
+        }
+        .vbvisor-control-nav-circle button:hover {
+            background-color: #353157aa;
+            color:white
         }
         .vbvisor-control-nav-circle .center-btn {
             width: 40px;
             height: 40px;
         }
-        .vbvisor-control-nav-circle .up-btn { top: 5px; }
-        .vbvisor-control-nav-circle .down-btn { bottom: 5px; }
-        .vbvisor-control-nav-circle .left-btn { left: 5px; }
-        .vbvisor-control-nav-circle .right-btn { right: 5px; }
+        .vbvisor-control-nav-circle .up-btn { top: 0px; }
+        .vbvisor-control-nav-circle .down-btn { bottom: 0px; }
+        .vbvisor-control-nav-circle .left-btn { left: 0px; }
+        .vbvisor-control-nav-circle .right-btn { right: 0px; }
+        .vbvisor-popup {
+            position: absolute;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            max-width: 300px;
+            font-size: 14px;
+        }
+        .vbvisor-popup .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div id="visorvb"></div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-kml@latest/L.KML.js"></script>
     <script>
         // Configuración del mapa
         const mapConfig = {
@@ -93,16 +117,20 @@
                     opacity: 1.0,
                     attribution: 'Visor desarrollado por VerticeB con la tecnologia de Leaflet | © Instituto Geográfico Nacional de España'
                 }
-                // Añade más capas WMS aquí, por ejemplo:
-                // {
-                //     url: 'https://otro-servicio-wms.com',
-                //     layers: 'nombre_capa',
-                //     format: 'image/png',
-                //     transparent: true,
-                //     opacity: 0.5,
-                //     attribution: 'Otra fuente'
-                // }
-            ]
+            ],
+            kmlFiles: [
+                'LaPaloma10.kml'
+            ],
+            kmlPopupContent: function(feature) {
+                // Personaliza el contenido del popup aquí
+                const name = feature.properties.name || 'Sin nombre';
+                const description = feature.properties.description || 'Sin descripción';
+                return `
+                    <h3>${name}</h3>
+                    <p>${description}</p>
+                    <p>Coordenadas: ${feature.geometry.coordinates || 'No disponibles'}</p>
+                `;
+            }
         };
 
         // Inicializar el mapa
@@ -123,6 +151,65 @@
             }).addTo(map);
         });
 
+        // Control personalizado para popup
+        L.Control.Popup = L.Control.extend({
+            options: { position: 'topleft' }, // Posición inicial, se ajustará dinámicamente
+            onAdd: function(map) {
+                this._div = L.DomUtil.create('div', 'vbvisor-popup');
+                this._div.style.display = 'none';
+                L.DomEvent.disableClickPropagation(this._div);
+                return this._div;
+            },
+            show: function(content, latlng) {
+                this._div.innerHTML = content + '<span class="close-btn">✖</span>';
+                this._div.style.display = 'block';
+                const point = map.latLngToContainerPoint(latlng);
+                this._div.style.left = point.x + 10 + 'px';
+                this._div.style.top = point.y + 10 + 'px';
+                const closeBtn = this._div.querySelector('.close-btn');
+                closeBtn.onclick = () => this.hide();
+            },
+            hide: function() {
+                this._div.style.display = 'none';
+            }
+        });
+
+        const popupControl = new L.Control.Popup().addTo(map);
+
+        // Cargar archivos KML
+        if (mapConfig.kmlFiles && mapConfig.kmlFiles.length > 0) {
+            mapConfig.kmlFiles.forEach(kmlUrl => {
+                if (!kmlUrl) {
+                    console.error('Error: URL de KML vacía o no válida');
+                    return;
+                }
+                fetch(kmlUrl)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`No se pudo cargar el archivo KML: ${kmlUrl} (Estado: ${response.status})`);
+                        }
+                        return response.text();
+                    })
+                    .then(kmlText => {
+                        const parser = new DOMParser();
+                        const kml = parser.parseFromString(kmlText, 'text/xml');
+                        const kmlLayer = new L.KML(kml);
+                        kmlLayer.on('click', function(e) {
+                            const feature = e.layer.feature;
+                            const latlng = e.latlng || (e.layer.getBounds ? e.layer.getBounds().getCenter() : null);
+                            if (feature && latlng) {
+                                const content = mapConfig.kmlPopupContent(feature);
+                                popupControl.show(content, latlng);
+                            }
+                        });
+                        map.addLayer(kmlLayer);
+                    })
+                    .catch(error => console.error(`Error cargando KML desde ${kmlUrl}:`, error.message));
+            });
+        } else {
+            console.warn('No se especificaron archivos KML en mapConfig.kmlFiles');
+        }
+
         // Ajustar el mapa al contenedor
         map.invalidateSize();
 
@@ -142,9 +229,6 @@
                 exampleBtn.onclick = function () {
                     alert('Botón de ejemplo en el menú de herramientas');
                 };
-
-                // Espacio para opciones futuras
-                // Aquí puedes añadir más botones posteriormente
 
                 // Toggle para desplegar/ocultar panel
                 toggleBtn.onclick = function () {
@@ -244,15 +328,10 @@
         if (parcelsGeoJSON) {
             L.geoJSON(parcelsGeoJSON, {
                 style: function (feature) {
-                    return { color: 'red', weight: 2 }; // Estilo personalizable
+                    return { color: 'red', weight: 2 };
                 }
             }).addTo(map);
         }
-
-        // Cargar desde un archivo .geojson (descomentar si es necesario)
-        // fetch('tu_archivo.geojson').then(response => response.json()).then(data => {
-        //     L.geoJSON(data).addTo(map);
-        // });
     </script>
 </body>
 </html>
