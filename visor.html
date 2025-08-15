@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor PNOA con Leaflet - Punta Chullera</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        #map {
+            width: 100%;
+            height: 600px; /* Altura fija, ajustable según necesidades */
+        }
+        .leaflet-control-tools {
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 5px;
+        }
+        .leaflet-control-tools button {
+            display: block;
+            width: 100%;
+            margin-bottom: 5px;
+            cursor: pointer;
+        }
+        .leaflet-control-tools .panel {
+            display: none;
+        }
+        .leaflet-control-coords {
+            background-color: white;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Inicializar en zona La Paloma 10
+        var map = L.map('map', {
+            attributionControl: true
+        }).setView([36.3217, -5.2489], 17);
+
+        map.attributionControl.setPrefix(false);
+
+        // Configurar el WMS del PNOA de máxima actualidad
+        var pnoaLayer = L.tileLayer.wms('https://www.ign.es/wms-inspire/pnoa-ma?', {
+            layers: 'OI.OrthoimageCoverage',
+            format: 'image/jpeg',
+            transparent: true,
+            attribution: 'Visor desarrollado por VerticeB con la tecnologia de Leaflet | © Instituto Geográfico Nacional de España'
+        }).addTo(map);
+
+        // Ajustar el mapa al contenedor
+        map.invalidateSize();
+
+        // Control personalizado para herramientas desplegables
+        L.Control.Tools = L.Control.extend({
+            options: { position: 'topleft' },
+            onAdd: function (map) {
+                var container = L.DomUtil.create('div', 'leaflet-control-tools');
+                var toggleBtn = L.DomUtil.create('button', 'toggle', container);
+                toggleBtn.innerHTML = '<i class="fas fa-tools"></i>';
+                toggleBtn.title = 'Herramientas';
+                var panel = L.DomUtil.create('div', 'panel', container);
+
+                // Botón Centrar mapa
+                var centerBtn = L.DomUtil.create('button', '', panel);
+                centerBtn.innerHTML = '<i class="fas fa-crosshairs"></i> Centrar mapa';
+                centerBtn.onclick = function () {
+                    map.setView([36.294, -5.239], 14);
+                };
+
+                // Botones de direcciones
+                var upBtn = L.DomUtil.create('button', '', panel);
+                upBtn.innerHTML = '<i class="fas fa-arrow-up"></i> Arriba';
+                upBtn.onclick = function () {
+                    map.panBy([0, -200]);
+                };
+
+                var downBtn = L.DomUtil.create('button', '', panel);
+                downBtn.innerHTML = '<i class="fas fa-arrow-down"></i> Abajo';
+                downBtn.onclick = function () {
+                    map.panBy([0, 200]);
+                };
+
+                var leftBtn = L.DomUtil.create('button', '', panel);
+                leftBtn.innerHTML = '<i class="fas fa-arrow-left"></i> Izquierda';
+                leftBtn.onclick = function () {
+                    map.panBy([-200, 0]);
+                };
+
+                var rightBtn = L.DomUtil.create('button', '', panel);
+                rightBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Derecha';
+                rightBtn.onclick = function () {
+                    map.panBy([200, 0]);
+                };
+
+                // Espacio para opciones futuras
+                // Aquí puedes añadir más botones posteriormente
+
+                // Toggle para desplegar/ocultar panel
+                toggleBtn.onclick = function () {
+                    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+                };
+
+                L.DomEvent.disableClickPropagation(container);
+                return container;
+            }
+        });
+
+        new L.Control.Tools().addTo(map);
+
+        // Control para coordenadas y zoom
+        L.Control.Coords = L.Control.extend({
+            options: { position: 'bottomleft' },
+            onAdd: function (map) {
+                this._div = L.DomUtil.create('div', 'leaflet-control-coords');
+                this.update('Mueve el ratón', map.getZoom());
+                var that = this;
+                map.on('mousemove', function (e) {
+                    var coords = e.latlng.lat.toFixed(4) + ', ' + e.latlng.lng.toFixed(4);
+                    that.update(coords, map.getZoom());
+                });
+                map.on('zoomend', function () {
+                    that.update(that._div.innerHTML.split(' | ')[0], map.getZoom());
+                });
+                return this._div;
+            },
+            update: function (coords, zoom) {
+                this._div.innerHTML = 'Coordenadas: ' + coords + ' | Zoom: ' + zoom;
+            }
+        });
+
+        new L.Control.Coords().addTo(map);
+
+        // Entrada para GeoJSON de parcelas
+        // Reemplaza null con tu objeto GeoJSON, o carga desde un archivo .geojson o .js
+        // Ejemplo: var parcelsGeoJSON = { type: "FeatureCollection", features: [...] };
+        var parcelsGeoJSON = null;
+
+        if (parcelsGeoJSON) {
+            L.geoJSON(parcelsGeoJSON, {
+                style: function (feature) {
+                    return { color: 'red', weight: 2 }; // Estilo personalizable
+                }
+            }).addTo(map);
+        }
+
+        // Si quieres cargar desde un archivo .geojson, puedes usar fetch:
+        // fetch('tu_archivo.geojson').then(response => response.json()).then(data => {
+        //     L.geoJSON(data).addTo(map);
+        // });
+    </script>
+</body>
+</html>
